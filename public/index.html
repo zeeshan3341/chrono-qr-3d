@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- App Manifest & Icon Support -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ChronoQR 3D">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#090d16">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>ChronoQR 3D — Smart Anti-Snooze Alarm Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #090d16 55%, #020409 100%);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: #f8fafc;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .font-cyber { font-family: 'Orbitron', sans-serif; }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(99, 102, 241, 0.22);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .watch-scene {
+            perspective: 1000px;
+            touch-action: none;
+        }
+        .watch-3d-body {
+            width: 245px;
+            height: 245px;
+            border-radius: 50%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.15s ease-out;
+            background: radial-gradient(circle at 30% 30%, #1e293b, #090d16 75%);
+            box-shadow: 
+                0 25px 60px rgba(0,0,0,0.85),
+                0 0 35px rgba(99, 102, 241, 0.35),
+                inset 0 0 25px rgba(6, 182, 212, 0.25),
+                inset 0 4px 8px rgba(255,255,255,0.2);
+            border: 6px solid #334155;
+        }
+        @media (min-width: 640px) {
+            .watch-3d-body {
+                width: 290px;
+                height: 290px;
+            }
+        }
+
+        .watch-bezel {
+            position: absolute;
+            inset: -12px;
+            border-radius: 50%;
+            border: 3px dashed rgba(6, 182, 212, 0.4);
+            transform: translateZ(-15px);
+            animation: spinSlow 60s linear infinite;
+        }
+        @keyframes spinSlow { 100% { transform: translateZ(-15px) rotate(360deg); } }
+
+        .hand {
+            position: absolute;
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom center;
+            border-radius: 99px;
+        }
+        .hour-hand {
+            width: 6px;
+            height: 58px;
+            margin-left: -3px;
+            background: linear-gradient(to top, #6366f1, #ffffff);
+            box-shadow: 0 0 10px rgba(99,102,241,0.8);
+            transform: translateZ(25px);
+        }
+        .min-hand {
+            width: 4px;
+            height: 80px;
+            margin-left: -2px;
+            background: linear-gradient(to top, #06b6d4, #ffffff);
+            box-shadow: 0 0 10px rgba(6,182,212,0.8);
+            transform: translateZ(30px);
+        }
+        .sec-hand {
+            width: 2px;
+            height: 95px;
+            margin-left: -1px;
+            background: #f43f5e;
+            box-shadow: 0 0 12px #f43f5e;
+            transform: translateZ(35px);
+        }
+        @media (min-width: 640px) {
+            .hour-hand { height: 68px; }
+            .min-hand { height: 95px; }
+            .sec-hand { height: 112px; }
+        }
+
+        .center-pin {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #f43f5e;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) translateZ(40px);
+            box-shadow: 0 0 15px #f43f5e;
+        }
+        .digital-core { transform: translateZ(18px); }
+
+        @keyframes sirenPulse {
+            0%, 100% { background: rgba(15, 23, 42, 0.96); box-shadow: inset 0 0 80px rgba(239, 68, 68, 0.5); }
+            50% { background: rgba(69, 10, 10, 0.96); box-shadow: inset 0 0 140px rgba(239, 68, 68, 0.95); }
+        }
+        .alarm-lockdown { animation: sirenPulse 1s infinite; }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body class="min-h-screen pb-28 sm:pb-16">
+
+    <!-- TOP NAVBAR -->
+    <header class="max-w-6xl mx-auto px-4 pt-4 sm:pt-6 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/30 font-cyber font-bold text-lg">
+                Q
+            </div>
+            <div>
+                <h1 class="font-cyber text-lg sm:text-xl font-bold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-cyan-400">
+                    CHRONO<span class="text-cyan-400">QR</span> 3D
+                </h1>
+                <p id="userBadge" class="text-[11px] text-slate-400">User ID: Loading...</p>
+            </div>
+        </div>
+
+        <nav class="hidden md:flex glass-panel p-1.5 rounded-2xl gap-2">
+            <button onclick="switchTab('alarms')" id="tab-alarms" class="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 transition">
+                🔐 QR Alarms
+            </button>
+            <button onclick="switchTab('stopwatch')" id="tab-stopwatch" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-300 hover:text-white transition">
+                ⏱️ Stopwatch
+            </button>
+            <button onclick="switchTab('timer')" id="tab-timer" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-300 hover:text-white transition">
+                ⏳ Focus Timer
+            </button>
+            <button onclick="switchTab('world')" id="tab-world" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-300 hover:text-white transition">
+                🌍 World Clock
+            </button>
+        </nav>
+    </header>
+
+    <!-- MOBILE STICKY BOTTOM NAVIGATION BAR -->
+    <nav class="md:hidden fixed bottom-0 inset-x-0 z-30 glass-panel border-t border-indigo-500/30 px-2 py-2 flex justify-around items-center">
+        <button onclick="switchTab('alarms')" id="mob-tab-alarms" class="flex flex-col items-center py-1.5 px-3 rounded-xl bg-indigo-600 text-white text-[11px] font-semibold transition">
+            <span class="text-base">🔐</span>
+            <span>Alarms</span>
+        </button>
+        <button onclick="switchTab('stopwatch')" id="mob-tab-stopwatch" class="flex flex-col items-center py-1.5 px-3 rounded-xl text-slate-400 text-[11px] font-semibold transition">
+            <span class="text-base">⏱️</span>
+            <span>Stopwatch</span>
+        </button>
+        <button onclick="switchTab('timer')" id="mob-tab-timer" class="flex flex-col items-center py-1.5 px-3 rounded-xl text-slate-400 text-[11px] font-semibold transition">
+            <span class="text-base">⏳</span>
+            <span>Timer</span>
+        </button>
+        <button onclick="switchTab('world')" id="mob-tab-world" class="flex flex-col items-center py-1.5 px-3 rounded-xl text-slate-400 text-[11px] font-semibold transition">
+            <span class="text-base">🌍</span>
+            <span>World</span>
+        </button>
+    </nav>
+
+    <!-- MAIN WORKSPACE GRID -->
+    <main class="max-w-6xl mx-auto px-4 mt-5 sm:mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
+
+        <!-- LEFT COLUMN: REAL-TIME 3D INTERACTIVE WATCH (5 Cols) -->
+        <section class="lg:col-span-5 glass-panel rounded-3xl p-5 sm:p-6 flex flex-col items-center relative overflow-hidden">
+            <div class="w-full flex justify-between items-center mb-2 sm:mb-4">
+                <span class="text-[11px] uppercase tracking-widest text-cyan-400 font-semibold">● Live 3D Chrono Engine</span>
+                <span id="liveDateDisplay" class="text-xs text-slate-400 font-medium">Loading...</span>
+            </div>
+
+            <!-- 3D WATCH SCENE -->
+            <div class="watch-scene my-4 sm:my-6 select-none cursor-grab" id="watchScene">
+                <div class="watch-3d-body flex items-center justify-center" id="watch3D">
+                    <div class="watch-bezel"></div>
+                    <div class="absolute inset-3 rounded-full border border-slate-700/60"></div>
+                    <span class="absolute top-3 font-cyber text-xs font-bold text-cyan-400">12</span>
+                    <span class="absolute bottom-3 font-cyber text-xs font-bold text-cyan-400">6</span>
+                    <span class="absolute left-4 font-cyber text-xs font-bold text-cyan-400">9</span>
+                    <span class="absolute right-4 font-cyber text-xs font-bold text-cyan-400">3</span>
+
+                    <div class="digital-core text-center mt-14 sm:mt-16 bg-slate-950/85 px-3.5 py-1.5 rounded-xl border border-indigo-500/30 backdrop-blur-md">
+                        <div class="flex items-baseline justify-center gap-1">
+                            <span id="digitalTime" class="font-cyber text-base sm:text-xl font-bold text-white tracking-wider">00:00:00</span>
+                            <span id="digitalMs" class="font-cyber text-[10px] text-cyan-400 w-4">00</span>
+                        </div>
+                        <p id="amPmBadge" class="text-[9px] sm:text-[10px] text-indigo-300 uppercase tracking-widest font-bold">AM • SYNCED</p>
+                    </div>
+
+                    <div id="hourHand" class="hand hour-hand"></div>
+                    <div id="minHand" class="hand min-hand"></div>
+                    <div id="secHand" class="hand sec-hand"></div>
+                    <div class="center-pin"></div>
+                </div>
+            </div>
+
+            <p class="text-xs text-slate-400 text-center mt-1">
+                💡 <i>Drag with your finger or move mouse to tilt the 3D Watch</i>
+            </p>
+
+            <div class="w-full grid grid-cols-2 gap-3 mt-5 pt-4 border-t border-slate-800">
+                <div class="bg-slate-900/70 p-3 rounded-2xl border border-slate-800 text-center">
+                    <p class="text-[11px] text-slate-400">Active Alarms</p>
+                    <p id="activeAlarmCount" class="font-cyber text-lg font-bold text-indigo-400 mt-0.5">0</p>
+                </div>
+                <div onclick="openQrModal()" class="bg-indigo-950/50 hover:bg-indigo-900/60 p-3 rounded-2xl border border-cyan-500/40 text-center cursor-pointer transition">
+                    <p class="text-[11px] text-cyan-300">Your Master QR</p>
+                    <p class="font-cyber text-xs font-bold text-white mt-1.5">📱 VIEW / SAVE</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: MULTI-TASKING HUB (7 Cols) -->
+        <section class="lg:col-span-7 glass-panel rounded-3xl p-5 sm:p-6 min-h-[500px]">
+
+            <!-- ================= TAB 1: MULTI-QR ALARM MANAGER ================= -->
+            <div id="view-alarms" class="space-y-5 sm:space-y-6">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3.5">
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-bold text-white">Smart QR Alarm Hub</h2>
+                        <p class="text-xs text-slate-400">Your permanent QR code stays the same even when you change alarm times</p>
+                    </div>
+                    <button onclick="openQrModal()" class="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-300 text-xs font-bold transition">
+                        📥 My Permanent QR Code
+                    </button>
+                </div>
+
+                <!-- Create / Edit Alarm Form -->
+                <div id="alarmFormCard" class="bg-slate-900/80 p-4 sm:p-5 rounded-2xl border border-indigo-500/20 space-y-4 transition-all">
+                    <div class="flex items-center justify-between">
+                        <span id="formModeBadge" class="text-xs font-bold uppercase tracking-wider text-indigo-400">➕ Set Alarm Time</span>
+                        <button id="cancelEditBtn" onclick="cancelEditMode()" class="hidden text-xs text-slate-400 hover:text-white underline">Cancel Edit</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        
+                        <!-- 1. CUSTOM WAKE-UP TIME PICKER -->
+                        <div class="md:col-span-5">
+                            <label class="block text-xs text-cyan-400 font-semibold mb-1.5">⏰ Wake-Up Time (HR : MIN : AM/PM)</label>
+                            <div class="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+                                <select id="alarmHour" class="w-1/3 bg-slate-900 text-white font-cyber font-bold text-center py-2.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 cursor-pointer text-sm">
+                                </select>
+                                <span class="font-cyber font-bold text-cyan-400">:</span>
+                                <select id="alarmMin" class="w-1/3 bg-slate-900 text-white font-cyber font-bold text-center py-2.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 cursor-pointer text-sm">
+                                </select>
+                                <select id="alarmAmPm" class="w-1/3 bg-indigo-600/30 text-cyan-300 border border-indigo-500/40 font-cyber font-bold text-center py-2.5 rounded-lg focus:outline-none cursor-pointer text-sm">
+                                    <option value="AM" class="bg-slate-900 text-white">AM</option>
+                                    <option value="PM" class="bg-slate-900 text-white">PM</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 2. TASK LABEL -->
+                        <div class="md:col-span-3">
+                            <label class="block text-xs text-slate-400 mb-1.5">🏷️ Alarm Label</label>
+                            <input type="text" id="alarmLabelInput" placeholder="e.g. Morning, Gym" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+
+                        <!-- 3. 20 RINGTONES DROPDOWN + PREVIEW BUTTON -->
+                        <div class="md:col-span-4">
+                            <label class="block text-xs text-slate-400 mb-1.5">🎵 20 Ringtone Sounds</label>
+                            <div class="flex gap-1.5">
+                                <select id="alarmToneInput" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-3 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer">
+                                </select>
+                                <button type="button" onclick="previewSelectedRingtone()" title="Preview Ringtone" class="px-3.5 bg-indigo-600/30 hover:bg-indigo-600 border border-indigo-500/40 rounded-xl text-sm transition">
+                                    🔊
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <button id="saveAlarmBtn" onclick="saveAlarmHandler()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 font-bold text-sm shadow-lg shadow-indigo-600/30 transition transform active:scale-95">
+                        Save Alarm (Uses Your Permanent QR Code)
+                    </button>
+                </div>
+
+                <!-- Saved Alarms List -->
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Your Scheduled Alarms</h3>
+                        <button onclick="clearAllAlarms()" class="text-[11px] text-red-400 hover:underline">Clear All</button>
+                    </div>
+                    <div id="alarmsListContainer" class="space-y-3 max-h-80 overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+
+            <!-- ================= TAB 2: PRO STOPWATCH ================= -->
+            <div id="view-stopwatch" class="hidden space-y-6 text-center py-4">
+                <h2 class="text-xl font-bold text-white">Precision Stopwatch</h2>
+                <div class="bg-slate-950/90 border border-slate-800 rounded-3xl py-8 sm:py-10 px-4 max-w-md mx-auto shadow-inner">
+                    <span id="swDisplay" class="font-cyber text-4xl sm:text-5xl font-extrabold text-cyan-400">00:00:00</span>
+                    <span id="swMs" class="font-cyber text-lg sm:text-xl text-indigo-400 ml-1">.00</span>
+                </div>
+                <div class="flex justify-center gap-3">
+                    <button onclick="startStopwatch()" id="swStartBtn" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-sm">Start</button>
+                    <button onclick="lapStopwatch()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-sm">Lap</button>
+                    <button onclick="resetStopwatch()" class="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-sm">Reset</button>
+                </div>
+                <div id="swLaps" class="max-w-md mx-auto space-y-2 max-h-48 overflow-y-auto text-left"></div>
+            </div>
+
+            <!-- ================= TAB 3: FOCUS TIMER ================= -->
+            <div id="view-timer" class="hidden space-y-6 text-center py-4">
+                <h2 class="text-xl font-bold text-white">Deep Focus & Task Timer</h2>
+                <div class="flex flex-wrap justify-center gap-2">
+                    <button onclick="setQuickTimer(5)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-xs font-semibold">5 Min</button>
+                    <button onclick="setQuickTimer(15)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-xs font-semibold">15 Min</button>
+                    <button onclick="setQuickTimer(25)" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-xs font-semibold">25 Min (Pomodoro)</button>
+                    <button onclick="setQuickTimer(60)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-xs font-semibold">60 Min</button>
+                </div>
+                <div class="bg-slate-950/90 border border-slate-800 rounded-3xl py-8 sm:py-10 px-6 max-w-md mx-auto">
+                    <span id="timerDisplay" class="font-cyber text-5xl sm:text-6xl font-extrabold text-indigo-400">25:00</span>
+                </div>
+                <div class="flex justify-center gap-3">
+                    <button onclick="toggleTimer()" id="timerToggleBtn" class="px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 font-bold text-sm">Start Focus</button>
+                    <button onclick="resetTimer()" class="px-6 py-3 rounded-xl bg-slate-800 font-bold text-sm">Reset</button>
+                </div>
+            </div>
+
+            <!-- ================= TAB 4: WORLD CLOCK HUB ================= -->
+            <div id="view-world" class="hidden space-y-4">
+                <h2 class="text-xl font-bold text-white mb-4">Global Time Zones</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5" id="worldClockGrid"></div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- MODAL 1: VIEW & DOWNLOAD PERMANENT MASTER QR CODE -->
+    <div id="qrModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-40">
+        <div class="glass-panel max-w-sm w-full rounded-3xl p-6 text-center space-y-4 border border-cyan-500/50 shadow-2xl">
+            <span class="px-3 py-1 text-[10px] font-cyber uppercase bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/30">
+                Permanent Master QR Key
+            </span>
+            <h3 class="text-lg sm:text-xl font-bold text-white">Your Personal Alarm QR</h3>
+            <p class="text-xs text-indigo-300">Works for all your alarms — even after changing times!</p>
+            
+            <div class="bg-white p-4 rounded-2xl inline-block shadow-xl border-4 border-cyan-400">
+                <img id="modalQrImg" src="" alt="QR Code" class="w-48 h-48 sm:w-56 sm:h-56 mx-auto block" />
+            </div>
+            
+            <p class="text-xs text-slate-300 leading-relaxed">
+                ✅ <b>One-Time Setup:</b> Download or print this QR code once. Whenever you change your alarm time, this exact same QR code will unlock it!
+            </p>
+            <div class="flex gap-3 pt-2">
+                <button onclick="downloadMasterQr()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-xs font-bold shadow-lg shadow-indigo-600/30">
+                    📥 Download QR Image
+                </button>
+                <button onclick="closeQrModal()" class="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: FULL-SCREEN LOCKDOWN ALARM RINGING & SCANNER -->
+    <div id="lockdownOverlay" class="fixed inset-0 z-50 hidden flex-col items-center justify-center p-4 alarm-lockdown">
+        <div class="max-w-md w-full glass-panel rounded-3xl p-5 sm:p-6 text-center space-y-4 border-2 border-red-500">
+            <div class="inline-block px-4 py-1 rounded-full bg-red-500/20 border border-red-500 text-red-300 font-cyber text-xs animate-pulse">
+                🚨 ANTI-SNOOZE LOCKDOWN ACTIVE
+            </div>
+            <h2 id="ringingLabel" class="text-2xl sm:text-3xl font-extrabold text-white">WAKE UP!</h2>
+            <p class="text-xs text-red-200">
+                No Snooze or Dismiss button! Point your camera at your <b>Personal Master QR Code</b> to stop the alarm.
+            </p>
+
+            <div id="reader" class="w-full overflow-hidden rounded-2xl border-2 border-red-400 bg-black min-h-[240px]"></div>
+
+            <p id="scanFeedback" class="text-xs sm:text-sm font-bold text-amber-300 min-h-[20px]"></p>
+        </div>
+    </div>
+
+    <script>
+        // ================= 1. 20 BUILT-IN RINGTONE MELODIES ENGINE =================
+        const RINGTONES = [
+            { id: 'r1',  name: '1. 🚨 Cyber Siren (Loud)',      wave: 'sawtooth', notes: [880, 440, 880, 440], speed: 180 },
+            { id: 'r2',  name: '2. 🤖 Classic Digital Beep',    wave: 'square',   notes: [1000, 0, 1000, 0],   speed: 140 },
+            { id: 'r3',  name: '3. 🔔 Morning Chime Melody',    wave: 'sine',     notes: [523, 659, 784, 1046],speed: 220 },
+            { id: 'r4',  name: '4. ☢️ Nuclear Red Alert',       wave: 'sawtooth', notes: [600, 900, 1200, 900],speed: 150 },
+            { id: 'r5',  name: '5. 🌌 Cosmic Harp Arpeggio',    wave: 'triangle', notes: [440, 554, 659, 880], speed: 200 },
+            { id: 'r6',  name: '6. 🕹️ Retro 8-Bit Arcade',      wave: 'square',   notes: [587, 784, 880, 1174],speed: 120 },
+            { id: 'r7',  name: '7. 🚑 Police Cruiser Wail',     wave: 'sawtooth', notes: [700, 1100, 700, 1100],speed: 250 },
+            { id: 'r8',  name: '8. 🧘 Zen Temple Bell',         wave: 'sine',     notes: [432, 864, 432, 0],   speed: 350 },
+            { id: 'r9',  name: '9. ⚡ Hyper Laser Pulse',       wave: 'sawtooth', notes: [1400, 900, 500, 1400],speed: 100 },
+            { id: 'r10', name: '10. 🎺 Military Bugle Call',    wave: 'triangle', notes: [392, 523, 659, 784], speed: 210 },
+            { id: 'r11', name: '11. 🌊 Sonar Submarine Ping',   wave: 'sine',     notes: [1200, 0, 600, 0],    speed: 260 },
+            { id: 'r12', name: '12. 🎹 Crystal Marimba',        wave: 'triangle', notes: [659, 784, 987, 1318],speed: 160 },
+            { id: 'r13', name: '13. 🔥 Extreme Wake-Up Horn',   wave: 'sawtooth', notes: [300, 310, 300, 600], speed: 200 },
+            { id: 'r14', name: '14. 🛸 UFO Alien Signal',       wave: 'sine',     notes: [900, 1350, 750, 1600],speed: 130 },
+            { id: 'r15', name: '15. ⏰ Double Fast Buzzer',     wave: 'square',   notes: [950, 950, 0, 950],   speed: 110 },
+            { id: 'r16', name: '16. 🌅 Sunrise Piano Chord',    wave: 'triangle', notes: [261, 329, 392, 523], speed: 280 },
+            { id: 'r17', name: '17. 🎛️ Techno Bass Drop',       wave: 'sawtooth', notes: [220, 440, 110, 880], speed: 150 },
+            { id: 'r18', name: '18. 🏥 Medical Monitor Beep',   wave: 'sine',     notes: [1500, 0, 1500, 0],   speed: 190 },
+            { id: 'r19', name: '19. 👑 Royal Fanfare Trumpet',  wave: 'triangle', notes: [523, 523, 523, 784], speed: 190 },
+            { id: 'r20', name: '20. 💥 Chaos Tornado Siren',    wave: 'sawtooth', notes: [500, 750, 1000, 1250],speed: 130 }
+        ];
+
+        function initFormControls() {
+            const hrSelect = document.getElementById('alarmHour');
+            const minSelect = document.getElementById('alarmMin');
+            const toneSelect = document.getElementById('alarmToneInput');
+
+            for (let h = 1; h <= 12; h++) {
+                const val = String(h).padStart(2, '0');
+                hrSelect.innerHTML += `<option value="${val}" class="bg-slate-900 text-white">${val}</option>`;
+            }
+            hrSelect.value = "07";
+
+            for (let m = 0; m < 60; m++) {
+                const val = String(m).padStart(2, '0');
+                minSelect.innerHTML += `<option value="${val}" class="bg-slate-900 text-white">${val}</option>`;
+            }
+            minSelect.value = "00";
+
+            toneSelect.innerHTML = RINGTONES.map(r => 
+                `<option value="${r.id}" class="bg-slate-900 text-white">${r.name}</option>`
+            ).join('');
+        }
+        initFormControls();
+
+        let audioCtx = null;
+
+        function playRingtoneBurst(ringtoneId) {
+            const tone = RINGTONES.find(r => r.id === ringtoneId) || RINGTONES[0];
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            tone.notes.forEach((freq, idx) => {
+                if (freq <= 0) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = tone.wave;
+                const startTime = audioCtx.currentTime + (idx * (tone.speed / 1000));
+                const duration = (tone.speed / 1000) * 0.85;
+
+                osc.frequency.setValueAtTime(freq, startTime);
+                gain.gain.setValueAtTime(0.35, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            });
+        }
+
+        function previewSelectedRingtone() {
+            const selectedId = document.getElementById('alarmToneInput').value;
+            playRingtoneBurst(selectedId);
+        }
+
+        // ================= 2. PERMANENT USER QR KEY (GENERATED ONLY ONCE PER USER) =================
+        let userId = localStorage.getItem('chrono_user_id');
+        if (!userId) {
+            userId = 'USR-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+            localStorage.setItem('chrono_user_id', userId);
+        }
+        document.getElementById('userBadge').innerText = `User ID: ${userId}`;
+
+        // Permanent Master Token: Never changes when you edit or change alarm time!
+        let masterQrToken = localStorage.getItem('chrono_master_qr_token');
+        if (!masterQrToken) {
+            masterQrToken = `CHRONOQR-MASTER-KEY-${userId}`;
+            localStorage.setItem('chrono_master_qr_token', masterQrToken);
+        }
+
+        function generateInstantQRDataURL(tokenText) {
+            const qr = new QRious({
+                value: tokenText,
+                size: 360,
+                background: '#ffffff',
+                foreground: '#090d16',
+                level: 'H'
+            });
+            return qr.toDataURL('image/png');
+        }
+
+        const masterQrImage = generateInstantQRDataURL(masterQrToken);
+
+        let alarms = JSON.parse(localStorage.getItem('chrono_alarms') || '[]');
+        let editingAlarmId = null;
+        let currentlyRingingAlarm = null;
+        let alarmBeepInterval = null;
+        let html5QrScanner = null;
+
+        // ================= 3. 3D WATCH ENGINE & TOUCH/MOUSE TILT =================
+        function update3DClock() {
+            const now = new Date();
+            const ms = now.getMilliseconds();
+            const sec = now.getSeconds() + ms / 1000;
+            const min = now.getMinutes() + sec / 60;
+            const hr = (now.getHours() % 12) + min / 60;
+
+            document.getElementById('secHand').style.transform = `translateZ(35px) rotate(${sec * 6}deg)`;
+            document.getElementById('minHand').style.transform = `translateZ(30px) rotate(${min * 6}deg)`;
+            document.getElementById('hourHand').style.transform = `translateZ(25px) rotate(${hr * 30}deg)`;
+
+            const rawHours = now.getHours();
+            const amPm = rawHours >= 12 ? 'PM' : 'AM';
+            const hr12 = String(rawHours % 12 || 12).padStart(2, '0');
+            const minStr = String(now.getMinutes()).padStart(2, '0');
+            const secStr = String(now.getSeconds()).padStart(2, '0');
+
+            document.getElementById('digitalTime').innerText = `${hr12}:${minStr}:${secStr}`;
+            document.getElementById('digitalMs').innerText = String(Math.floor(ms / 10)).padStart(2, '0');
+            document.getElementById('amPmBadge').innerText = `${amPm} • SYNCED`;
+            document.getElementById('liveDateDisplay').innerText = now.toDateString();
+
+            if (ms < 60 && !currentlyRingingAlarm) {
+                const current24HM = `${String(rawHours).padStart(2, '0')}:${minStr}`;
+                const matched = alarms.find(a => a.enabled && a.time24 === current24HM && !a.triggeredToday);
+                if (matched) {
+                    matched.triggeredToday = true;
+                    triggerLockdownAlarm(matched);
+                }
+            }
+            requestAnimationFrame(update3DClock);
+        }
+        requestAnimationFrame(update3DClock);
+
+        const watchScene = document.getElementById('watchScene');
+        const watch3D = document.getElementById('watch3D');
+
+        function handleTilt(clientX, clientY) {
+            const rect = watchScene.getBoundingClientRect();
+            const x = ((clientX - rect.left) / rect.width - 0.5) * 35;
+            const y = ((clientY - rect.top) / rect.height - 0.5) * -35;
+            watch3D.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+        }
+
+        watchScene.addEventListener('mousemove', (e) => handleTilt(e.clientX, e.clientY));
+        watchScene.addEventListener('mouseleave', () => watch3D.style.transform = `rotateY(0deg) rotateX(0deg)`);
+        watchScene.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) handleTilt(e.touches[0].clientX, e.touches[0].clientY);
+        });
+        watchScene.addEventListener('touchend', () => watch3D.style.transform = `rotateY(0deg) rotateX(0deg)`);
+
+        // ================= 4. CREATE OR UPDATE ALARM TIME (WITHOUT CHANGING QR CODE!) =================
+        function saveAlarmHandler() {
+            const hr12 = document.getElementById('alarmHour').value;
+            const min = document.getElementById('alarmMin').value;
+            const ampm = document.getElementById('alarmAmPm').value;
+            const label = document.getElementById('alarmLabelInput').value.trim() || 'Smart Wake Up';
+            const toneId = document.getElementById('alarmToneInput').value;
+
+            let hr24 = parseInt(hr12, 10);
+            if (ampm === 'PM' && hr24 < 12) hr24 += 12;
+            if (ampm === 'AM' && hr24 === 12) hr24 = 0;
+            const time24 = `${String(hr24).padStart(2, '0')}:${min}`;
+            const displayTime = `${hr12}:${min} ${ampm}`;
+            const toneObj = RINGTONES.find(r => r.id === toneId) || RINGTONES[0];
+
+            // If Editing an Existing Alarm Time -> Update Time Only, DO NOT generate a new QR!
+            if (editingAlarmId) {
+                const index = alarms.findIndex(a => a.id === editingAlarmId);
+                if (index !== -1) {
+                    alarms[index].hr12 = hr12;
+                    alarms[index].min = min;
+                    alarms[index].ampm = ampm;
+                    alarms[index].time24 = time24;
+                    alarms[index].displayTime = displayTime;
+                    alarms[index].label = label;
+                    alarms[index].toneId = toneId;
+                    alarms[index].toneName = toneObj.name;
+                    alarms[index].triggeredToday = false;
+                }
+                cancelEditMode();
+                saveAndRenderAlarms();
+                return;
+            }
+
+            // Creating a New Alarm -> Uses the User's Permanent Master QR Code
+            const isFirstAlarmEver = !localStorage.getItem('chrono_qr_shown_once');
+            const alarmId = 'ALM-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+
+            const newAlarm = {
+                id: alarmId,
+                hr12,
+                min,
+                ampm,
+                time24,
+                displayTime,
+                label,
+                toneId,
+                toneName: toneObj.name,
+                enabled: true,
+                triggeredToday: false
+            };
+
+            alarms.unshift(newAlarm);
+            saveAndRenderAlarms();
+            document.getElementById('alarmLabelInput').value = '';
+
+            // Only pop up the QR Modal automatically the very first time the user sets an alarm
+            if (isFirstAlarmEver) {
+                localStorage.setItem('chrono_qr_shown_once', 'true');
+                openQrModal();
+            }
+        }
+
+        // Load Alarm into Form to Change Time Without New QR
+        function editAlarmTime(id) {
+            const alarm = alarms.find(a => a.id === id);
+            if (!alarm) return;
+
+            editingAlarmId = id;
+
+            // Parse time back into dropdowns
+            if (alarm.hr12 && alarm.min && alarm.ampm) {
+                document.getElementById('alarmHour').value = alarm.hr12;
+                document.getElementById('alarmMin').value = alarm.min;
+                document.getElementById('alarmAmPm').value = alarm.ampm;
+            }
+            document.getElementById('alarmLabelInput').value = alarm.label;
+            document.getElementById('alarmToneInput').value = alarm.toneId || 'r1';
+
+            // Highlight Edit Mode in UI
+            document.getElementById('formModeBadge').innerText = `✏️ Editing Time for "${alarm.label}" (Same QR Code)`;
+            document.getElementById('formModeBadge').className = 'text-xs font-bold uppercase tracking-wider text-amber-400';
+            document.getElementById('saveAlarmBtn').innerText = '✅ Update Alarm Time (Keep Same QR Code)';
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            document.getElementById('alarmFormCard').classList.add('border-amber-500/60');
+
+            // Smooth scroll to form
+            document.getElementById('alarmFormCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function cancelEditMode() {
+            editingAlarmId = null;
+            document.getElementById('alarmLabelInput').value = '';
+            document.getElementById('formModeBadge').innerText = '➕ Set Alarm Time';
+            document.getElementById('formModeBadge').className = 'text-xs font-bold uppercase tracking-wider text-indigo-400';
+            document.getElementById('saveAlarmBtn').innerText = 'Save Alarm (Uses Your Permanent QR Code)';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            document.getElementById('alarmFormCard').classList.remove('border-amber-500/60');
+        }
+
+        function saveAndRenderAlarms() {
+            localStorage.setItem('chrono_alarms', JSON.stringify(alarms));
+            document.getElementById('activeAlarmCount').innerText = alarms.filter(a => a.enabled).length;
+            const container = document.getElementById('alarmsListContainer');
+
+            if (alarms.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-500 text-sm">No alarms scheduled yet. Set a wake-up time above!</div>`;
+                return;
+            }
+
+            container.innerHTML = alarms.map(a => `
+                <div class="bg-slate-900/90 border border-indigo-500/40 p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-3.5">
+                        <img onclick="openQrModal()" src="${masterQrImage}" alt="QR" title="Your Permanent QR Code" class="w-12 h-12 rounded-lg border-2 border-cyan-400 bg-white p-0.5 cursor-pointer hover:scale-105 transition shrink-0" />
+                        <div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="font-cyber text-lg sm:text-xl font-bold text-white">${a.displayTime}</span>
+                                <span class="px-2.5 py-0.5 text-[10px] rounded-full bg-indigo-500/20 text-indigo-300 font-semibold">${a.label}</span>
+                            </div>
+                            <p class="text-[11px] text-cyan-400 mt-0.5">${a.toneName || 'Cyber Siren'}</p>
+                            <p class="text-[10px] text-emerald-400 font-medium">✓ Linked to your Permanent QR</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 border-slate-800 pt-2.5 sm:pt-0">
+                        <button onclick="editAlarmTime('${a.id}')" class="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600 border border-indigo-500/40 text-xs font-semibold text-white transition">
+                            ✏️ Change Time
+                        </button>
+                        <button onclick="testSpecificAlarm('${a.id}')" class="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-semibold transition">
+                            🔔 Test
+                        </button>
+                        <button onclick="deleteAlarm('${a.id}')" class="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openQrModal() {
+            document.getElementById('modalQrImg').src = masterQrImage;
+            document.getElementById('qrModal').classList.remove('hidden');
+            document.getElementById('qrModal').classList.add('flex');
+        }
+
+        function downloadMasterQr() {
+            const link = document.createElement('a');
+            link.href = masterQrImage;
+            link.download = `ChronoQR-MasterKey-${userId}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function closeQrModal() {
+            document.getElementById('qrModal').classList.add('hidden');
+            document.getElementById('qrModal').classList.remove('flex');
+        }
+
+        function deleteAlarm(id) {
+            if (editingAlarmId === id) cancelEditMode();
+            alarms = alarms.filter(a => a.id !== id);
+            saveAndRenderAlarms();
+        }
+
+        function clearAllAlarms() {
+            cancelEditMode();
+            alarms = [];
+            saveAndRenderAlarms();
+        }
+
+        function testSpecificAlarm(id) {
+            const alarm = alarms.find(a => a.id === id);
+            if (alarm) triggerLockdownAlarm(alarm);
+        }
+
+        // ================= 5. LOCKDOWN ALARM & QR CAMERA SCANNER =================
+        function triggerLockdownAlarm(alarm) {
+            currentlyRingingAlarm = alarm;
+            document.getElementById('ringingLabel').innerText = `${alarm.label} (${alarm.displayTime})`;
+            document.getElementById('scanFeedback').innerText = 'Point your camera at your Personal Master QR Code...';
+            document.getElementById('lockdownOverlay').classList.remove('hidden');
+            document.getElementById('lockdownOverlay').classList.add('flex');
+
+            playRingtoneBurst(alarm.toneId);
+            alarmBeepInterval = setInterval(() => playRingtoneBurst(alarm.toneId), 900);
+
+            html5QrScanner = new Html5Qrcode("reader");
+            html5QrScanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 210, height: 210 } },
+                (decodedText) => {
+                    // Matches the user's Permanent Master QR Token
+                    if (decodedText === masterQrToken) {
+                        unlockAndStopAlarm();
+                    } else {
+                        document.getElementById('scanFeedback').innerText = '❌ INVALID QR CODE! Please scan your Personal Master QR Code.';
+                    }
+                },
+                () => {}
+            ).catch(() => {
+                document.getElementById('scanFeedback').innerText = '⚠️ Please allow camera access to scan your QR code!';
+            });
+        }
+
+        function unlockAndStopAlarm() {
+            clearInterval(alarmBeepInterval);
+            if (html5QrScanner) {
+                html5QrScanner.stop().then(() => html5QrScanner.clear());
+            }
+            currentlyRingingAlarm = null;
+            document.getElementById('lockdownOverlay').classList.add('hidden');
+            document.getElementById('lockdownOverlay').classList.remove('flex');
+            alert('✅ Master QR Code Verified! Alarm Dismissed. Have a great day!');
+        }
+
+        // ================= 6. STOPWATCH, FOCUS TIMER & WORLD CLOCK =================
+        function switchTab(tab) {
+            ['alarms', 'stopwatch', 'timer', 'world'].forEach(t => {
+                document.getElementById(`view-${t}`).classList.add('hidden');
+                const dTab = document.getElementById(`tab-${t}`);
+                if (dTab) dTab.className = 'px-4 py-2 rounded-xl text-sm font-semibold text-slate-300 hover:text-white transition';
+                const mTab = document.getElementById(`mob-tab-${t}`);
+                if (mTab) mTab.className = 'flex flex-col items-center py-1.5 px-3 rounded-xl text-slate-400 text-[11px] font-semibold transition';
+            });
+
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            const activeDesktop = document.getElementById(`tab-${tab}`);
+            if (activeDesktop) activeDesktop.className = 'px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 transition';
+
+            const activeMobile = document.getElementById(`mob-tab-${tab}`);
+            if (activeMobile) activeMobile.className = 'flex flex-col items-center py-1.5 px-3 rounded-xl bg-indigo-600 text-white text-[11px] font-semibold transition';
+        }
+
+        let swStartTime = 0, swElapsed = 0, swRunning = false, swInterval = null, laps = [];
+        function startStopwatch() {
+            if (!swRunning) {
+                swStartTime = Date.now() - swElapsed;
+                swInterval = setInterval(updateSw, 30);
+                swRunning = true;
+                document.getElementById('swStartBtn').innerText = 'Pause';
+            } else {
+                clearInterval(swInterval);
+                swRunning = false;
+                document.getElementById('swStartBtn').innerText = 'Resume';
+            }
+        }
+        function updateSw() {
+            swElapsed = Date.now() - swStartTime;
+            const totalSec = Math.floor(swElapsed / 1000);
+            const hrs = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+            const secs = String(totalSec % 60).padStart(2, '0');
+            const ms = String(Math.floor((swElapsed % 1000) / 10)).padStart(2, '0');
+            document.getElementById('swDisplay').innerText = `${hrs}:${mins}:${secs}`;
+            document.getElementById('swMs').innerText = `.${ms}`;
+        }
+        function lapStopwatch() {
+            if (!swElapsed) return;
+            laps.unshift(document.getElementById('swDisplay').innerText + document.getElementById('swMs').innerText);
+            document.getElementById('swLaps').innerHTML = laps.map((l, i) =>
+                `<div class="bg-slate-900 px-4 py-2 rounded-xl flex justify-between text-xs border border-slate-800"><span>Lap ${laps.length - i}</span><span class="font-cyber text-cyan-400">${l}</span></div>`
+            ).join('');
+        }
+        function resetStopwatch() {
+            clearInterval(swInterval);
+            swRunning = false; swElapsed = 0; laps = [];
+            document.getElementById('swDisplay').innerText = '00:00:00';
+            document.getElementById('swMs').innerText = '.00';
+            document.getElementById('swStartBtn').innerText = 'Start';
+            document.getElementById('swLaps').innerHTML = '';
+        }
+
+        let timerSeconds = 25 * 60, timerRunning = false, timerInt = null;
+        function setQuickTimer(mins) {
+            clearInterval(timerInt); timerRunning = false;
+            timerSeconds = mins * 60;
+            renderTimer();
+            document.getElementById('timerToggleBtn').innerText = 'Start Focus';
+        }
+        function renderTimer() {
+            const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+            const s = String(timerSeconds % 60).padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = `${m}:${s}`;
+        }
+        function toggleTimer() {
+            if (!timerRunning) {
+                timerRunning = true;
+                document.getElementById('timerToggleBtn').innerText = 'Pause';
+                timerInt = setInterval(() => {
+                    if (timerSeconds > 0) { timerSeconds--; renderTimer(); }
+                    else { clearInterval(timerInt); playRingtoneBurst('r3'); alert('⏳ Focus Session Complete!'); }
+                }, 1000);
+            } else {
+                clearInterval(timerInt); timerRunning = false;
+                document.getElementById('timerToggleBtn').innerText = 'Resume';
+            }
+        }
+        function resetTimer() { setQuickTimer(25); }
+
+        const zones = [
+            { city: 'Islamabad / Peshawar', tz: 'Asia/Karachi' },
+            { city: 'Makkah', tz: 'Asia/Riyadh' },
+            { city: 'Dubai', tz: 'Asia/Dubai' },
+            { city: 'London', tz: 'Europe/London' },
+            { city: 'New York', tz: 'America/New_York' },
+            { city: 'Tokyo', tz: 'Asia/Tokyo' }
+        ];
+        setInterval(() => {
+            document.getElementById('worldClockGrid').innerHTML = zones.map(z => {
+                const t = new Date().toLocaleTimeString('en-US', { timeZone: z.tz, hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                return `<div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
+                    <span class="text-sm font-semibold text-slate-200">${z.city}</span>
+                    <span class="font-cyber text-sm font-bold text-cyan-400">${t}</span>
+                </div>`;
+            }).join('');
+        }, 1000);
+
+        saveAndRenderAlarms();
+    </script>
+</body>
+</html>
