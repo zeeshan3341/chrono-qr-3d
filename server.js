@@ -1,6 +1,6 @@
 const express = require('express');
 const QRCode = require('qrcode');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const path = require('path');
 
 const app = express();
@@ -12,8 +12,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 // API: Generate Unique QR Code per User & per Alarm
 app.post('/api/generate-qr', async (req, res) => {
     try {
-        const { userId, label, time } = req.body;
-        const alarmId = uuidv4();
+        const { userId, label, time } = req.body || {};
+        const alarmId = randomUUID();
         const uniqueToken = `CHRONOQR|USER:${userId || 'GUEST'}|ALARM:${alarmId}|TIME:${time}`;
 
         const qrImage = await QRCode.toDataURL(uniqueToken, {
@@ -46,7 +46,7 @@ app.use((req, res) => {
 // Dynamic Port for Localhost & Live Hosting
 const PORT = process.env.PORT || 3000;
 
-if (process.env.NODE_ENV !== 'production') {
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
     console.log(`🚀 ChronoQR 3D Suite running at: http://localhost:${PORT}`);
   });
