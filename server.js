@@ -42,7 +42,13 @@ app.use((req, res) => {
 });
 
 // Dynamic Port for Localhost & Live Hosting
+ // Dynamic Port for Localhost & Live Hosting
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
     console.log(`🚀 ChronoQR 3D Suite running at: http://localhost:${PORT}`);
-});
+  });
+}
+
+module.exports = app;
