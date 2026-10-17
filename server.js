@@ -5,6 +5,8 @@ const path = require('path');
 
 const app = express();
 app.use(express.json());
+
+// Absolute static path for Vercel serverless environment
 app.use(express.static(path.join(__dirname, 'public')));
 
 // API: Generate Unique QR Code per User & per Alarm
@@ -36,13 +38,12 @@ app.post('/api/generate-qr', async (req, res) => {
     }
 });
 
-// Safe Catch-All Middleware for Express v5 (Avoids path-to-regexp errors)
+// Safe Catch-All Middleware for Vercel & Express
 app.use((req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Dynamic Port for Localhost & Live Hosting
- // Dynamic Port for Localhost & Live Hosting
 const PORT = process.env.PORT || 3000;
 
 if (process.env.NODE_ENV !== 'production') {
